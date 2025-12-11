@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../app_colors.dart';
+import 'package:test_main/screens/mypage/review_write.dart';
 
 /// 마이페이지 메인 화면
 class MyPageScreen extends StatelessWidget {
@@ -26,12 +27,12 @@ class MyPageScreen extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-          children: const [
-            _MyPageUserSummary(),
-            SizedBox(height: 24),
+          children: [
+            const _MyPageUserSummary(),
+            const SizedBox(height: 24),
 
             /// 1) 나의 계좌정보
-            _MyPageSection(
+            const _MyPageSection(
               title: '나의 계좌정보',
               description: '대표계좌 / 입출금계좌 요약',
               child: Column(
@@ -43,10 +44,10 @@ class MyPageScreen extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
             /// 2) 나의 외화예금
-            _MyPageSection(
+            const _MyPageSection(
               title: '나의 외화예금',
               description: '보유 중인 외화예금 상품 요약',
               child: Column(
@@ -58,10 +59,10 @@ class MyPageScreen extends StatelessWidget {
                 ],
               ),
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
 
             /// 3) 보유 외화자산
-            _MyPageSection(
+            const _MyPageSection(
               title: '보유 외화자산',
               description: '예금/지갑 등 전체 외화자산 합산',
               child: Column(
@@ -73,6 +74,29 @@ class MyPageScreen extends StatelessWidget {
                 ],
               ),
             ),
+
+            const SizedBox(height: 16),
+
+            /// 4) 상품리뷰작성
+            _MyPageSection(
+              title: '상품 리뷰 작성',
+              description: '만기된 외화상품에 대한 리뷰를 남겨주세요.',
+              onTap: () {
+                Navigator.pushNamed(
+                  context,
+                  DepositReviewWriteScreen.routeName,
+                );
+              },
+              child: const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _SummaryRow(label: '만기된 상품', value: 'FLOBANK 외화 예금'),
+                  SizedBox(height: 8),
+                  _SummaryRow(label: '리뷰 상태', value: '미작성'),
+                ],
+              ),
+            ),
+
           ],
         ),
       ),
