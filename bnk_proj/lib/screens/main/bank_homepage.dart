@@ -14,6 +14,7 @@ import '../exchange/forex_insight.dart';
 
 import 'alarm.dart';
 import 'package:test_main/screens/main/live_camera.dart';
+import '../chat/chat.dart';
 
 
 class BankHomePage extends StatefulWidget {
@@ -37,7 +38,12 @@ class _BankHomePageState extends State<BankHomePage> {
           shape: const CircleBorder(),
           clipBehavior: Clip.antiAlias,
           onPressed: () {
-            print("챗봇 이동");
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => const ChatScreen(),
+              ),
+            );
           },
           child: SizedBox.expand(
             child: Image.asset(
@@ -61,7 +67,7 @@ class _BankHomePageState extends State<BankHomePage> {
           ),
         ),
         actions: [
-          // ✅ 1. 스캔 버튼 (누르면 실시간 AR 카메라 화면으로 이동)
+          // 1. 스캔 버튼 (누르면 실시간 AR 카메라 화면으로 이동)
           IconButton(
             icon: const Icon(Icons.qr_code_scanner, color: Colors.black87),
             onPressed: () {
@@ -634,7 +640,17 @@ class _ServiceList extends StatelessWidget {
             tileColor: Colors.white,
             leading: CircleAvatar(
               backgroundColor: const Color(0xFF4F6280).withOpacity(0.1),
-              child: Icon(service.icon, color: const Color(0xFF4F6280)),
+              child: service.icon is String
+                  ? Image.asset(
+                service.icon as String,
+                width: 24,
+                height: 24,
+                fit: BoxFit.contain,
+              )
+                  : Icon(
+                service.icon as IconData,
+                color: const Color(0xFF4F6280),
+              ),
             ),
             title: Text(
               service.title,
@@ -659,7 +675,7 @@ class ServiceHighlight {
     required this.onTap,
   });
 
-  final IconData icon;
+  final dynamic icon;
   final String title;
   final String description;
   final VoidCallback onTap;
@@ -680,7 +696,7 @@ List<ServiceHighlight> buildAiAndFxServices(BuildContext context) => [
     },
   ),
   ServiceHighlight(
-    icon: Icons.mic_none_outlined,
+    icon: 'images/flobankIcon5_음성비서.png',
     title: 'AI 음성비서',
     description: '시리처럼 말로 송금·조회·추천을 요청해보세요.',
     onTap: () {

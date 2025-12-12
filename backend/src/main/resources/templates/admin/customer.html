@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="ko"
+      th:replace="~{admin/admin_template :: admin_template('관리자 - 고객 관리', '고객 관리', ~{::content}, ~{::script})}">
+
+<th:block th:fragment="content">
+
+    <section class="admin-content">
+
+        <style>
+            /* =========================================
+               공통 및 레이아웃 스타일
+               ========================================= */
+            .board-admin {
+                display: flex;
+                flex-direction: column;
+                gap: 40px; /* 섹션 간 간격 */
+            }
+
+            .board-section {
+                background: #fff;
+                padding: 20px;
+                border-radius: 8px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            }
+
+            /* 상단 헤더 */
+            .board-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 15px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid #f1f1f1;
+            }
+            .board-header h2 { margin: 0 !important; font-size: 1.25rem; color: #333; font-weight: 700; }
+
+            .header-controls { display: flex; gap: 10px; }
+            .search-form-inline { display: flex; align-items: center; gap: 5px; }
+            .search-select-mini { width: 100px; height: 34px; border: 1px solid #ddd; border-radius: 4px; padding: 0 5px; }
+            .search-input-mini { width: 180px; height: 34px; border: 1px solid #ddd; border-radius: 4px; padding: 0 10px; }
+
+            .btn-search-mini {
+                height: 34px; padding: 0 15px;
+                background: #22304e; color: #fff;
+                border:none; border-radius: 4px; cursor: pointer;
+                transition: 0.2s;
+            }
+            .btn-search-mini:hover { opacity: 0.9; }
+
+            /* =========================================
+               테이블 스타일 (레이아웃 강제 고정)
+               ========================================= */
+            .board-table-wrapper {
+                overflow-x: auto;
+                min-width: 1000px;
+            }
+
+            .customer-table {
+                width: 100%;
+                table-layout: fixed !important;
+                border-collapse: collapse;
+            }
+
+            .customer-table th, .customer-table td {
+                vertical-align: middle;
+                text-align: center !important;
+                padding: 12px 5px;
+                border-bottom: 1px solid #eee;
+                font-size: 13px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            .customer-table th {
+                background-color: #f8f9fa;
+                font-weight: 700;
+                color: #495057;
+                border-top: 2px solid #22304e;
+                height: 45px;
+            }
+
+            .customer-table td { height: 45px; color: #444; }
+
+            /* =========================================
+               배지 및 버튼 스타일
+               ========================================= */
+            .status-badge {
+                padding: 4px 8px; border-radius: 12px; font-size: 11px;
+                color: white; display: inline-block; line-height: 1;
+            }
+            .status-active { background-color: #28a745; }
+            .status-inactive { background-color: #6c757d; }
+
+            /* AI 결과 배지 */
+            .ai-badge {
+                padding: 4px 10px; border-radius: 4px; font-size: 11px;
+                color: #1565c0; background-color: #e3f2fd;
+                border: 1px solid #90caf9;
+                font-weight: 600;
+                display: inline-block;
+            }
+
+            .match-score { color: #e65100; font-weight: bold; }
+            .match-high { color: #d32f2f; }
+
+            .consent-y { color: #007bff; font-weight: 800; }
+            .consent-n { color: #dc3545; font-weight: 800; }
+
+            .btn-group { display: flex; justify-content: center; align-items: center; gap: 4px; }
+
+            .board-btn-edit {
+                background-color: #fff; border: 1px solid #ddd; color: #333;
+                padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;
+            }
+            .board-btn-edit:hover { background-color: #f8f9fa; }
+
+            .board-btn-del {
+                background-color: #fff; border: 1px solid #ffcccc; color: #e74c3c;
+                padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 11px;
+            }
+            .board-btn-del:hover { background-color: #fff5f5; }
+
+            .board-btn-view {
+                background-color: #22304e; color: #fff; border: 1px solid #22304e;
+                padding: 4px 10px; border-radius: 4px; cursor: pointer; font-size: 11px;
+            }
+            .board-btn-view:hover { opacity: 0.9; }
+
+        </style>
+
+        <div class="board-admin">
+
+            <section id="customer-list" class="board-section">
+
+                <div class="board-header">
+                    <h2>고객 목록</h2>
+                    <div class="header-controls">
+                        <form class="search-form-inline">
+                            <select class="search-select-mini">
+                                <option>전체</option>
+                                <option>이름</option>
+                                <option>주민번호</option>
+                            </select>
+                            <input type="text" class="search-input-mini" placeholder="회원 검색">
+                            <button type="submit" class="btn-search-mini">검색</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="board-table-wrapper">
+                    <table class="board-table customer-table">
+                        <colgroup>
+                            <col style="width: 4%">
+                            <col style="width: 7%">
+                            <col style="width: 13%">
+                            <col style="width: 12%">
+                            <col style="width: 4%">
+                            <col style="width: 9%">
+                            <col style="width: 7%">
+                            <col style="width: 7%">
+                            <col style="width: 9%">
+                            <col style="width: 15%">
+                            <col style="width: 13%">
+                        </colgroup>
+                        <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>이름</th>
+                            <th>주민등록번호</th>
+                            <th>휴대폰 번호</th>
+                            <th>성별</th>
+                            <th>생년월일</th>
+                            <th>상품가입</th>
+                            <th>푸시동의</th>
+                            <th>푸시일자</th>
+                            <th>최근 로그인</th>
+                            <th>관리</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>김철수</td>
+                            <td>850101-1******</td>
+                            <td>010-****-1234</td>
+                            <td>남</td>
+                            <td>1985-01-01</td>
+                            <td><span class="status-badge status-active">가입</span></td>
+                            <td><span class="consent-y">Y</span></td>
+                            <td>2024-12-10</td>
+                            <td>2024-12-12 14:30</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="board-btn-edit">수정</button>
+                                    <button class="board-btn-del">삭제</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>이영희</td>
+                            <td>900515-2******</td>
+                            <td>010-****-5678</td>
+                            <td>여</td>
+                            <td>1990-05-15</td>
+                            <td><span class="status-badge status-inactive">미가입</span></td>
+                            <td><span class="consent-n">N</span></td>
+                            <td>-</td>
+                            <td>2024-11-30 09:15</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="board-btn-edit">수정</button>
+                                    <button class="board-btn-del">삭제</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>박민수</td>
+                            <td>880808-1******</td>
+                            <td>010-****-9876</td>
+                            <td>남</td>
+                            <td>1988-08-08</td>
+                            <td><span class="status-badge status-active">가입</span></td>
+                            <td><span class="consent-n">N</span></td>
+                            <td>-</td>
+                            <td>2024-12-11 18:20</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="board-btn-edit">수정</button>
+                                    <button class="board-btn-del">삭제</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td>최지혜</td>
+                            <td>951225-2******</td>
+                            <td>010-****-4321</td>
+                            <td>여</td>
+                            <td>1995-12-25</td>
+                            <td><span class="status-badge status-inactive">미가입</span></td>
+                            <td><span class="consent-n">N</span></td>
+                            <td>-</td>
+                            <td>2024-10-15 11:00</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="board-btn-edit">수정</button>
+                                    <button class="board-btn-del">삭제</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td>정우성</td>
+                            <td>020301-3******</td>
+                            <td>010-****-1111</td>
+                            <td>남</td>
+                            <td>2002-03-01</td>
+                            <td><span class="status-badge status-active">가입</span></td>
+                            <td><span class="consent-y">Y</span></td>
+                            <td>2024-12-11</td>
+                            <td>2024-12-12 10:45</td>
+                            <td>
+                                <div class="btn-group">
+                                    <button class="board-btn-edit">수정</button>
+                                    <button class="board-btn-del">삭제</button>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="pagination">
+                    <a href="#" class="page-btn prev">〈</a>
+                    <a href="#" class="page-btn active">1</a>
+                    <a href="#" class="page-btn">2</a>
+                    <a href="#" class="page-btn">3</a>
+                    <a href="#" class="page-btn next">〉</a>
+                </div>
+            </section>
+
+
+            <section id="survey-result-list" class="board-section">
+
+                <div class="board-header">
+                    <h2>고객별 AI 외화 예금 추천 결과</h2>
+
+                    <div class="header-controls">
+                        <form class="search-form-inline">
+                            <select class="search-select-mini">
+                                <option>전체</option>
+                                <option>고객명</option>
+                                <option>설문 제목</option>
+                                <option>추천 상품</option>
+                            </select>
+                            <input type="text" class="search-input-mini" placeholder="검색어를 입력하세요">
+                            <button type="submit" class="btn-search-mini">검색</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="board-table-wrapper">
+                    <table class="board-table customer-table">
+                        <colgroup>
+                            <col style="width: 5%">  <col style="width: 9%">  <col style="width: 18%"> <col style="width: 10%"> <col style="width: 13%"> <col style="width: 25%"> <col style="width: 8%">  <col style="width: 12%"> </colgroup>
+                        <thead>
+                        <tr>
+                            <th>No</th>
+                            <th>고객명</th>
+                            <th>설문 제목</th>
+                            <th>참여 일자</th>
+                            <th>AI 분석 성향</th>
+                            <th>추천 외화 상품</th>
+                            <th>매칭률</th>
+                            <th>결과 보기</th>
+                        </tr>
+                        </thead>
+                        <tbody>
+                        <tr>
+                            <td>1</td>
+                            <td>김철수</td>
+                            <td>글로벌 시장 트렌드 조사</td>
+                            <td>2024-12-10</td>
+                            <td><span class="ai-badge">트렌드 투자형</span></td>
+                            <td><b>슈카 달러 풀링 예금</b></td>
+                            <td><span class="match-high">98%</span></td>
+                            <td>
+                                <button class="board-btn-view">분석 상세</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>2</td>
+                            <td>이영희</td>
+                            <td>환테크 입문자 설문</td>
+                            <td>2024-12-09</td>
+                            <td><span class="ai-badge">실속 추구형</span></td>
+                            <td>FLOBANK 더 와이드 외화적금</td>
+                            <td><span class="match-score">85%</span></td>
+                            <td>
+                                <button class="board-btn-view">분석 상세</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>3</td>
+                            <td>박민수</td>
+                            <td>여유 자금 운용 계획</td>
+                            <td>2024-12-08</td>
+                            <td><span class="ai-badge">안정 지향형</span></td>
+                            <td>FLOBANK 외화정기예금</td>
+                            <td><span class="match-high">92%</span></td>
+                            <td>
+                                <button class="board-btn-view">분석 상세</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>4</td>
+                            <td>정우성</td>
+                            <td>자산 포트폴리오 진단</td>
+                            <td>2024-12-11</td>
+                            <td><span class="ai-badge">고액 자산가</span></td>
+                            <td>FLOBANK 외화 고단위 플러스 정기예금</td>
+                            <td><span class="match-score">89%</span></td>
+                            <td>
+                                <button class="board-btn-view">분석 상세</button>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>5</td>
+                            <td>최지혜</td>
+                            <td>해외 여행 자금 마련</td>
+                            <td>2024-12-12</td>
+                            <td><span class="ai-badge">단기 유동성</span></td>
+                            <td>FLOBANK 외화보통예금</td>
+                            <td><span class="match-high">95%</span></td>
+                            <td>
+                                <button class="board-btn-view">분석 상세</button>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="pagination">
+                    <a href="#" class="page-btn prev">〈</a>
+                    <a href="#" class="page-btn active">1</a>
+                    <a href="#" class="page-btn">2</a>
+                    <a href="#" class="page-btn next">〉</a>
+                </div>
+
+            </section>
+
+        </div> </section>
+
+</th:block>
+
+<th:block th:fragment="script">
+    <script th:src="@{/js/customer.js}"></script>
+    <script>
+        $(document).ready(function() {
+            console.log("고객 관리 및 AI 외화 추천 결과 로드 완료");
+        });
+    </script>
+</th:block>
+
+</html>
