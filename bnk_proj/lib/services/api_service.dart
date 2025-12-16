@@ -12,7 +12,7 @@ class ApiService {
   static const _storage = FlutterSecureStorage();
 
   /// 로그인 요청
-  static Future<bool> login(String userid, String password, String deviceId) async {
+  static Future<Map<String, dynamic>> login(String userid, String password, String deviceId) async {
     final url = Uri.parse('$baseUrl/member/login');
 
     try {
@@ -22,29 +22,34 @@ class ApiService {
         body: jsonEncode({
           "userid": userid,
           "password": password,
-          "deviceId": deviceId, // Controller의 LoginRequest 필드명과 일치해야 함
+          "deviceId": deviceId,
         }),
       );
 
+      // 서버 응답 디코딩 (한글 깨짐 방지)
+      final responseBody = jsonDecode(utf8.decode(response.bodyBytes));
+
       if (response.statusCode == 200) {
-        // 성공 시 JSON 파싱
-        final data = jsonDecode(utf8.decode(response.bodyBytes)); // 한글 깨짐 방지
-        String token = data['token'];
-        String custName = data['custName'];
+        // HTTP 200 OK (성공 or NEW_DEVICE 등 정상 응답)
 
-        print("로그인 성공! 이름: $custName, 토큰: $token");
+        // 토큰이 있다면 저장 (SUCCESS일 때만 옴)
+        if (responseBody['token'] != null) {
+          await _storage.write(key: 'auth_token', value: responseBody['token']);
+        }
 
-        // 토큰을 안전한 저장소에 보관 (나중에 API 호출 때 사용)
-        await _storage.write(key: 'auth_token', value: token);
+        return responseBody; // 전체 데이터 반환 {"status": "...", "message": "..."}
 
-        return true;
       } else {
-        print("로그인 실패: ${response.body}");
-        return false;
+        // HTTP 401, 500 등 에러
+        print("로그인 에러: ${response.body}");
+        return {
+          "status": "FAIL",
+          "message": responseBody['message'] ?? "로그인 요청 실패"
+        };
       }
     } catch (e) {
       print("서버 통신 오류: $e");
-      return false;
+      return {"status": "ERROR", "message": "서버와 연결할 수 없습니다."};
     }
   }
 }

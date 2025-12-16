@@ -17,7 +17,15 @@ import 'package:test_main/screens/main/menu/review_write.dart';
 import 'package:test_main/utils/device_manager.dart';
 import 'package:http/http.dart' as http;
 
-void main() {
+void main() async{
+  // 1. 플러터 엔진 초기화 (비동기 작업 전 필수)
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // 2. 앱 실행 시점에 UUID 생성/확인
+  // 저장소에 기기 ID가 없으면 새로 만들고, 있으면 가져옴
+  String deviceId = await DeviceManager.getDeviceId();
+  debugPrint("[App Start] 기기 고유 ID 확보 완료: $deviceId");
+
   runApp(const MyApp());
 }
 
@@ -83,10 +91,6 @@ class MyApp extends StatelessWidget {
         DepositReviewWriteScreen.routeName: (_) =>
         const DepositReviewWriteScreen(),
       },
-
-
-
-
       home: const LoginPage(),
     );
   }
@@ -286,22 +290,39 @@ class _LoginFormState extends State<_LoginForm> {
                 return;
               }
 
-              // 2. DeviceID 가져오기
+              // 2. 기기 ID 가져오기 (main에서 이미 만들어졌으므로 즉시 리턴됨)
               String deviceId = await DeviceManager.getDeviceId();
 
-              // 3. ApiService를 통해 로그인 요청 (코드가 매우 간결해짐)
-              bool isSuccess = await ApiService.login(id, pw, deviceId);
+              // 3. 로그인 요청 및 결과 처리 (Map으로 받음)
+              Map<String, dynamic> result = await ApiService.login(id, pw, deviceId);
+              String status = result['status']; // 서버에서 보낸 status 값 확인
 
-              if (!mounted) return; // 비동기 처리 후 위젯이 살아있는지 확인
+              if (!mounted) return;
 
-              if (isSuccess) {
-                Navigator.pushReplacement( // 뒤로가기 못하게 Replacement 사용 추천
+              if (status == 'SUCCESS') {
+                // [Case A] 정상 로그인 (기기 일치)
+                print("✅ 로그인 성공 & 기기 인증 완료");
+                Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (context) => const BankHomePage())
                 );
-              } else {
+              } else if (status == 'NEW_DEVICE') {
+                // [Case B] 새로운 기기 감지 -> 추가 인증 필요
+                print("새로운 기기 감지됨. 본인 인증 필요.");
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('로그인에 실패했습니다. 아이디/비밀번호를 확인하세요.')),
+                  const SnackBar(
+                    content: Text('새로운 기기가 감지되었습니다. 본인 인증을 진행해주세요.'),
+                    duration: Duration(seconds: 3),
+                  ),
+                );
+
+                // TODO: 여기서 본인인증 화면(SMS 등)으로 이동시키는 로직 추가
+                // Navigator.push(context, MaterialPageRoute(builder: (context) => AuthCheckPage()));
+
+              } else {
+                // [Case C] 로그인 실패 (아이디/비번 틀림 등)
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text(result['message'] ?? '로그인에 실패했습니다.')),
                 );
               }
             },
