@@ -49,8 +49,19 @@
     </select>
 
     <select id="getKRWAccts" resultType="kr.co.api.backend.dto.CustAcctDTO">
-        SELECT acct_no, acct_pw, acct_balance from tb_cust_acct
-        where acct_cust_code=#{acctCustCode} AND acct_status=1
+        SELECT
+            a.acct_no,
+            a.acct_pw,
+            a.acct_balance,
+            a.acct_name,
+            a.acct_cust_code,
+            c.cust_name
+        FROM tb_cust_acct a
+                 JOIN tb_cust_info c
+                      ON TRIM(a.acct_cust_code) = TRIM(c.cust_code)
+        WHERE (TRIM(a.acct_cust_code) = TRIM(#{acctCustCode})
+            OR TRIM(c.cust_id) = TRIM(#{acctCustCode}))
+          AND a.acct_status = 1
     </select>
 
     <select id="getFrgnAcct" resultType="kr.co.api.backend.dto.CustFrgnAcctDTO">
