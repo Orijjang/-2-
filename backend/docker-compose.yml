@@ -12,6 +12,12 @@ services:
     env_file:
       - .env
 
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"   # 로그 파일 하나당 최대 10MB
+        max-file: "3"      # 최대 3개까지만 보관 (총 30MB 제한)
+
     # 파일 저장소 연결 (서버의 ./files 폴더를 컨테이너의 /app/uploads와 연결)
     volumes:
       - ./files:/app/uploads
