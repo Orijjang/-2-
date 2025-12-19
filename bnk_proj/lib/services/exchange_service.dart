@@ -17,10 +17,17 @@ class ExchangeService {
     // ✅ JWT 포함 헤더
     final headers = await ApiService.getAuthHeaders();
 
+    // 🔥 여기 추가
+    print("📌 Exchange headers = $headers");
+
     final response = await http.get(
       url,
       headers: headers,
     );
+
+    // 🔥 여기 추가
+    print("📌 Exchange response status = ${response.statusCode}");
+    print("📌 Exchange response body = ${response.body}");
 
     if (response.statusCode != 200) {
       throw Exception("계좌 조회 실패: ${response.body}");
