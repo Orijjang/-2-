@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:test_main/screens/member/signup_1.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 import 'screens/app_colors.dart';
 import 'screens/main/bank_homepage.dart';
@@ -13,27 +15,88 @@ import 'package:test_main/screens/deposit/recommend.dart';
 import 'package:test_main/screens/deposit/survey.dart';
 import 'package:test_main/screens/main/menu/review_write.dart';
 
-void main() {
+
+final navigatorKey = GlobalKey<NavigatorState>();
+
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  await FirebaseMessaging.instance.requestPermission();
+
+  final token = await FirebaseMessaging.instance.getToken();
+  await FirebaseMessaging.instance.subscribeToTopic('notice');
+  print('Subscribed to topic: notice');
+  print('FCM token: $token');
+
+  // 토큰 갱신(나중에 서버에 업데이트)
+  FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+    print('FCM token refreshed: $newToken');
+  });
+
+  final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+  if (initialMessage != null) {
+    final route = initialMessage.data['route'];
+    if (route != null) {
+    }
+  }
+
+  FirebaseMessaging.onMessageOpenedApp.listen((m) {
+    final route = m.data['route'];
+    if (route != null) {
+      // navigatorKey로 pushNamed
+    }
+  });
+
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+    _initPushTapRouting();
+  }
+
+  void _initPushTapRouting() async {
+    // 1) 종료 상태에서 알림 눌러 켠 경우
+    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    if (initial != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _routeFromData(initial.data);
+      });
+    }
+
+    // 2) 백그라운드에서 알림 눌러 열린 경우
+    FirebaseMessaging.onMessageOpenedApp.listen((m) {
+      _routeFromData(m.data);
+    });
+  }
+
+  void _routeFromData(Map<String, dynamic> data) {
+    final route = data['route'] as String?;
+    if (route == null) return;
+
+    navigatorKey.currentState?.pushNamed(route, arguments: data);
+  }
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'FLOBANK',
       theme: ThemeData(useMaterial3: true),
-
-
-      //예금 가입하기 관련 페이지 이동
+      home: const LoginPage(),
       routes: {
-        DepositViewScreen.routeName: (context) {
-          final title = ModalRoute.of(context)!.settings.arguments as String;
-          return DepositViewScreen(title: title);
-        },
         DepositStep1Screen.routeName: (context) => const DepositStep1Screen(),
         DepositStep2Screen.routeName: (context) => const DepositStep2Screen(),
         DepositStep3Screen.routeName: (context) => const DepositStep3Screen(),
@@ -41,15 +104,13 @@ class MyApp extends StatelessWidget {
         RecommendScreen.routeName: (context) => const RecommendScreen(),
         DepositSurveyScreen.routeName: (_) => const DepositSurveyScreen(),
         DepositReviewWriteScreen.routeName: (_) => const DepositReviewWriteScreen(),
-
+        '/tx/detail': (_) => const TxDetailScreen(),
+        '/notice/detail': (_) => const NoticeDetailScreen(),
       },
-
-
-
-      home: const LoginPage(),
     );
   }
 }
+
 
 class LoginPage extends StatelessWidget {
   const LoginPage({super.key});
@@ -313,4 +374,31 @@ class _ShortcutButton extends StatelessWidget {
     );
   }
 }
+///////////////////////////
+class TxDetailScreen extends StatelessWidget {
+  const TxDetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments as Map?;
+    return Scaffold(
+      appBar: AppBar(title: const Text('거래 상세')),
+      body: Center(child: Text('args: $args')),
+    );
+  }
+}
+
+class NoticeDetailScreen extends StatelessWidget {
+  const NoticeDetailScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final args = ModalRoute.of(context)?.settings.arguments as Map?;
+    return Scaffold(
+      appBar: AppBar(title: const Text('공지 상세')),
+      body: Center(child: Text('args: $args')),
+    );
+  }
+}
+
 
