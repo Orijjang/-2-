@@ -178,11 +178,12 @@
     <select id="selectMyFrgnAccount"
             resultType="kr.co.api.backend.dto.FrgnAcctDTO">
         SELECT
-            frgn_acct_no   AS frgnAcctNo,
-            frgn_cust_code AS frgnCustCode,
-            frgn_reg_dt    AS frgnRegDt
-        FROM TB_FRGN_ACCT
-        WHERE frgn_cust_code = #{custCode}
+            frgn_acct_no        AS frgnAcctNo,
+            frgn_acct_cust_code AS frgnCustCode,
+            frgn_acct_reg_dt    AS frgnRegDt
+        FROM TB_CUST_FRGN_ACCT
+        WHERE frgn_acct_cust_code = #{custCode}
+          AND frgn_acct_status = 1
     </select>
 
     <!-- =========================
