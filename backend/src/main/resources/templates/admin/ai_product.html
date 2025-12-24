@@ -213,7 +213,7 @@
 
             .meta-list {
                 display: grid;
-                grid-template-columns: repeat(3, minmax(0, 1fr));
+                grid-template-columns: repeat(4, minmax(0, 1fr));
                 gap: 12px;
                 margin-top: 8px;
                 padding: 12px;
@@ -390,14 +390,22 @@
                 <div class="board-table-wrapper">
                     <table class="ai-table">
                         <colgroup>
-                            <col style="width: 5%">  <col style="width: 12%"> <col style="width: 25%"> <col style="width: 8%">  <col style="width: 10%"> <col style="width: 12%"> <col style="width: 10%"> <col style="width: 18%"> </colgroup>
+                            <col style="width: 6%">
+                            <col style="width: 22%">
+                            <col style="width: 22%">
+                            <col style="width: 8%">
+                            <col style="width: 12%">
+                            <col style="width: 12%">
+                            <col style="width: 8%">
+                            <col style="width: 10%">
+                        </colgroup>
                         <thead>
                         <tr>
                             <th>No</th>
-                            <th>카테고리</th>
                             <th>설문지 제목 (클라이언트 노출)</th>
+                            <th>설문 설명</th>
                             <th>문항 수</th>
-                            <th>AI 가중치</th>
+                            <th>등록일</th>
                             <th>최종 수정일</th>
                             <th>상태</th>
                             <th>콘텐츠 관리</th>
@@ -428,22 +436,6 @@
                                 <textarea id="survey-description" name="description" placeholder="설문 설명을 입력하세요"></textarea>
                             </div>
                             <div class="form-group">
-                                <label for="survey-category">카테고리</label>
-                                <input type="text" id="survey-category" name="category" placeholder="예) 투자 성향">
-                            </div>
-                            <div class="form-group">
-                                <label for="survey-weight">AI 가중치</label>
-                                <select id="survey-weight" name="weight">
-                                    <option value="High">High</option>
-                                    <option value="Medium">Medium</option>
-                                    <option value="Low">Low</option>
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <label for="survey-question-count">문항 수</label>
-                                <input type="number" id="survey-question-count" name="questionCount" min="1" value="1">
-                            </div>
-                            <div class="form-group">
                                 <label for="survey-status">사용 여부</label>
                                 <select id="survey-status" name="isActive">
                                     <option value="Y">사용중</option>
@@ -463,6 +455,10 @@
                             <div class="meta-item">
                                 <strong>작성자</strong>
                                 <span id="survey-created-by">admin</span>
+                            </div>
+                            <div class="meta-item">
+                                <strong>수정자</strong>
+                                <span id="survey-updated-by">-</span>
                             </div>
                         </div>
                     </form>
@@ -495,63 +491,21 @@
             const surveySaveButton = $('#survey-modal-save');
             const surveyMetaCreatedAt = $('#survey-created-at');
             const surveyMetaUpdatedAt = $('#survey-updated-at');
+            const surveyMetaCreatedBy = $('#survey-created-by');
+            const surveyMetaUpdatedBy = $('#survey-updated-by');
 
-            const surveys = [
-                {
-                    id: 1,
-                    category: '투자 성향',
-                    title: '글로벌 시장 트렌드 및 위험 감수성 조사',
-                    questionCount: 12,
-                    weight: 'High',
-                    updatedAt: '2024-12-01',
-                    isActive: 'Y',
-                    description: '고객 투자 성향을 분석하기 위한 설문입니다.',
-                    createdAt: '2024-11-15',
-                    createdBy: 'admin'
-                },
-                {
-                    id: 2,
-                    category: '소비/지출',
-                    title: '환테크 입문자용 기초 설문',
-                    questionCount: 8,
-                    weight: 'Medium',
-                    updatedAt: '2024-11-20',
-                    isActive: 'Y',
-                    description: '환테크 경험이 적은 고객을 위한 설문입니다.',
-                    createdAt: '2024-11-01',
-                    createdBy: 'admin'
-                },
-                {
-                    id: 3,
-                    category: '목적 자금',
-                    title: '해외 여행 및 유학 자금 계획',
-                    questionCount: 10,
-                    weight: 'Medium',
-                    updatedAt: '2024-10-15',
-                    isActive: 'N',
-                    description: '목적 자금 마련 계획을 파악합니다.',
-                    createdAt: '2024-09-22',
-                    createdBy: 'admin'
-                },
-                {
-                    id: 4,
-                    category: '자산 규모',
-                    title: '고액 자산가 전용 포트폴리오 진단',
-                    questionCount: 15,
-                    weight: 'High',
-                    updatedAt: '2024-12-10',
-                    isActive: 'Y',
-                    description: '고액 자산가 고객 맞춤 포트폴리오를 위한 설문입니다.',
-                    createdAt: '2024-12-01',
-                    createdBy: 'admin'
-                }
-            ];
+            const CONTEXT_PATH = "/backend";
+            const SURVEY_API = `${CONTEXT_PATH}/admin/ai-product/surveys`;
+            let surveys = [];
             let editingSurveyId = null;
 
-            const weightColorMap = {
-                High: '#d32f2f',
-                Medium: '#f57c00',
-                Low: '#2e7d32'
+            const formatDate = (value) => {
+                if (!value) return '-';
+                const date = new Date(value);
+                if (Number.isNaN(date.getTime())) {
+                    return value.toString().slice(0, 10);
+                }
+                return date.toISOString().slice(0, 10);
             };
 
             const formatStatusBadge = (isActive) => {
@@ -568,20 +522,19 @@
                     return;
                 }
                 surveys.forEach((survey) => {
-                    const weightColor = weightColorMap[survey.weight] || '#333';
                     const rowHtml = `
                         <tr>
-                            <td>${survey.id}</td>
-                            <td>${survey.category || '-'}</td>
+                            <td>${survey.surveyId}</td>
                             <td style="font-weight: bold; text-align: left !important; padding-left: 15px;">${survey.title}</td>
-                            <td>${survey.questionCount}문항</td>
-                            <td><span style="color:${weightColor}; font-weight:bold;">${survey.weight}</span></td>
-                            <td>${survey.updatedAt}</td>
+                            <td style="text-align: left !important; padding-left: 15px;">${survey.description || '-'}</td>
+                            <td>${survey.questionCount || 0}문항</td>
+                            <td>${formatDate(survey.createdAt)}</td>
+                            <td>${formatDate(survey.updatedAt)}</td>
                             <td>${formatStatusBadge(survey.isActive)}</td>
                             <td>
                                 <div class="survey-table-actions">
-                                    <button class="btn-detail btn-edit" data-id="${survey.id}">문항 수정</button>
-                                    <button class="btn-detail btn-preview" data-id="${survey.id}" style="color:#666;">미리보기</button>
+                                    <button class="btn-detail btn-edit" data-id="${survey.surveyId}">수정</button>
+                                    <button class="btn-detail btn-preview" data-id="${survey.surveyId}" style="color:#666;">미리보기</button>
                                 </div>
                             </td>
                         </tr>
@@ -598,12 +551,12 @@
                 if (mode === 'create') {
                     surveyModalTitle.text('설문 등록');
                     surveyForm.trigger('reset');
-                    $('#survey-question-count').val(1);
                     $('#survey-status').val('Y');
-                    $('#survey-weight').val('High');
-                    surveyMetaCreatedAt.text(new Date().toISOString().slice(0, 10));
-                    surveyMetaUpdatedAt.text(new Date().toISOString().slice(0, 10));
-                    $('#survey-created-by').text('admin');
+                    const today = new Date().toISOString().slice(0, 10);
+                    surveyMetaCreatedAt.text(today);
+                    surveyMetaUpdatedAt.text(today);
+                    surveyMetaCreatedBy.text('admin');
+                    surveyMetaUpdatedBy.text('admin');
                     editingSurveyId = null;
                     return;
                 }
@@ -615,58 +568,67 @@
                 surveyModalTitle.text(mode === 'edit' ? '설문 수정' : '설문 미리보기');
                 $('#survey-title').val(survey.title);
                 $('#survey-description').val(survey.description);
-                $('#survey-category').val(survey.category);
-                $('#survey-weight').val(survey.weight);
-                $('#survey-question-count').val(survey.questionCount);
                 $('#survey-status').val(survey.isActive);
-                surveyMetaCreatedAt.text(survey.createdAt || '-');
-                surveyMetaUpdatedAt.text(survey.updatedAt || '-');
-                $('#survey-created-by').text(survey.createdBy || 'admin');
-                editingSurveyId = survey.id;
+                surveyMetaCreatedAt.text(formatDate(survey.createdAt));
+                surveyMetaUpdatedAt.text(formatDate(survey.updatedAt));
+                surveyMetaCreatedBy.text(survey.createdBy || 'admin');
+                surveyMetaUpdatedBy.text(survey.updatedBy || '-');
+                editingSurveyId = survey.surveyId;
             };
 
             const closeModal = () => {
                 surveyModal.removeClass('is-visible').attr('aria-hidden', 'true');
             };
 
-            const findSurvey = (id) => surveys.find((survey) => survey.id === id);
+            const findSurvey = (id) => surveys.find((survey) => survey.surveyId === id);
 
-            const updateSurveyData = (survey, formData) => ({
-                ...survey,
-                title: formData.title,
-                description: formData.description,
-                category: formData.category,
-                weight: formData.weight,
-                questionCount: Number(formData.questionCount),
-                isActive: formData.isActive,
-                updatedAt: new Date().toISOString().slice(0, 10),
-                createdBy: survey.createdBy || 'admin'
-            });
+            const fetchSurveys = async () => {
+                try {
+                    const res = await fetch(SURVEY_API);
+                    if (!res.ok) {
+                        throw new Error('설문 목록을 불러오지 못했습니다.');
+                    }
+                    surveys = await res.json();
+                    renderSurveys();
+                } catch (error) {
+                    console.error(error);
+                    alert(error.message || '설문 목록을 불러오는 중 오류가 발생했습니다.');
+                }
+            };
 
-            const handleSaveSurvey = () => {
+            const handleSaveSurvey = async () => {
                 const formData = Object.fromEntries(new FormData(surveyForm[0]).entries());
                 if (!formData.title) {
                     alert('설문 제목을 입력해주세요.');
                     return;
                 }
-                if (editingSurveyId) {
-                    const index = surveys.findIndex((survey) => survey.id === editingSurveyId);
-                    if (index >= 0) {
-                        surveys[index] = updateSurveyData(surveys[index], formData);
+
+                const payload = {
+                    title: formData.title,
+                    description: formData.description,
+                    isActive: formData.isActive,
+                    updatedBy: 'admin',
+                    createdBy: 'admin'
+                };
+
+                try {
+                    const url = editingSurveyId ? `${SURVEY_API}/${editingSurveyId}` : SURVEY_API;
+                    const method = editingSurveyId ? 'PUT' : 'POST';
+                    const res = await fetch(url, {
+                        method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    if (!res.ok) {
+                        const message = await res.text();
+                        throw new Error(message || '설문 저장에 실패했습니다.');
                     }
-                } else {
-                    const newSurvey = updateSurveyData(
-                        {
-                            id: surveys.length ? Math.max(...surveys.map((survey) => survey.id)) + 1 : 1,
-                            createdAt: new Date().toISOString().slice(0, 10),
-                            createdBy: 'admin'
-                        },
-                        formData
-                    );
-                    surveys.unshift(newSurvey);
+                    await fetchSurveys();
+                    closeModal();
+                } catch (error) {
+                    console.error(error);
+                    alert(error.message || '설문 저장 중 오류가 발생했습니다.');
                 }
-                renderSurveys();
-                closeModal();
             };
 
             $('#survey-create-btn').on('click', () => openModal('create'));
@@ -690,7 +652,7 @@
                 openModal('preview', survey);
             });
 
-            renderSurveys();
+            fetchSurveys();
         });
     </script>
 </th:block>
