@@ -6,7 +6,15 @@
 <mapper namespace="kr.co.api.backend.mapper.DepositMapper">
 
 
-
+    <select id="findDpstByName" resultType="kr.co.api.backend.dto.ProductDTO">
+        SELECT
+        dpst_id,
+        dpst_name
+        FROM tb_dpst_prod_info
+        WHERE DPST_STATUS = 3
+        AND REPLACE(dpst_name, ' ', '')
+        LIKE '%' || REPLACE(#{keyword}, ' ', '') || '%'
+    </select>
 
     <select id="selectDpstProduct" resultType="kr.co.api.backend.dto.ProductDTO">
         select * from TB_DPST_PROD_INFO

@@ -2,6 +2,9 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:test_main/screens/deposit/list.dart';
+import 'package:test_main/screens/deposit/view.dart';
+import 'package:test_main/voice/ui/voice_nav_command.dart';
 import 'package:test_main/voice/ui/voice_ui_state.dart';
 import 'package:test_main/voice/ui/voice_waveform.dart';
 
@@ -21,6 +24,30 @@ class VoiceAssistantOverlay extends StatefulWidget {
 }
 
 class _VoiceAssistantOverlayState extends State<VoiceAssistantOverlay> {
+
+
+  void _openDepositView(String dpstId) {
+    Navigator.of(context).pop(); // overlay 닫기
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final nav = Navigator.of(context, rootNavigator: true);
+
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => const DepositListPage(),
+        ),
+      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        nav.pushNamed(
+          DepositViewScreen.routeName,
+          arguments: DepositViewArgs(dpstId: dpstId),
+        );
+      });
+    });
+  }
+
+
 
   @override
   Widget build(BuildContext context) {

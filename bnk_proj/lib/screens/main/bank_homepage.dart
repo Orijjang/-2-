@@ -10,10 +10,12 @@ import '../../services/api_service.dart';
 import '../../voice/service/voice_stt_service.dart';
 import '../../voice/service/voice_tts_service.dart';
 import '../../voice/ui/voice_assistant_overlay.dart';
+import '../../voice/ui/voice_nav_command.dart';
 import '../../voice/ui/voice_ui_state.dart';
 import '../../voice/ui/voice_waveform.dart';
 import '../app_colors.dart';
 import '../../main.dart';
+import '../deposit/view.dart';
 import '../mypage/transaction_history.dart';
 import '../ai/camera_exchange_screen.dart';
 import '../ai/voice_assistant_screen.dart';
@@ -103,6 +105,59 @@ class BankHomePage extends StatefulWidget {
 
 class _BankHomePageState extends State<BankHomePage> {
   // int _currentIndex = 0;
+  VoiceSessionController? _voiceController;
+  @override
+  void initState() {
+    super.initState();
+    _voiceController = VoiceSessionController(
+      stt: VoiceSttService(),
+      tts: VoiceTtsService(),
+    );
+
+    _voiceController!.navCommand.addListener(_handleVoiceNav);
+  }
+
+  @override
+  void dispose() {
+    _voiceController?.navCommand.removeListener(_handleVoiceNav);
+    super.dispose();
+  }
+
+  void _openVoiceOverlay() {
+    final controller = _voiceController;
+    if (controller == null) return;
+
+    controller.attachOverlay();
+
+    _openVoiceAssistantOverlay(context, controller);
+  }
+
+  void _handleVoiceNav() {
+    final cmd = _voiceController!.navCommand.value;
+    if (cmd == null) return;
+
+    _voiceController!.navCommand.value = null;
+
+    if (cmd.type == VoiceNavType.openDepositView) {
+      _openDepositFlow(cmd.productCode!);
+    }
+  }
+  void _openDepositFlow(String productCode) {
+    Navigator.of(context).pop(); // overlay 닫기
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const DepositListPage()),
+      );
+
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.of(context).pushNamed(
+          DepositViewScreen.routeName,
+          arguments: DepositViewArgs(dpstId: productCode),
+        );
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -380,7 +435,7 @@ class _BankHomePageState extends State<BankHomePage> {
               const SizedBox(height: 8),
 
               /// ✅ AI & 외환 서비스 리스트
-              _ServiceList(services: buildAiAndFxServices(context)),
+              _ServiceList(services: buildAiAndFxServices(context, _openVoiceOverlay)),
             ],
           ),
         ),
@@ -811,7 +866,7 @@ class ServiceHighlight {
   final VoidCallback onTap;
 }
 
-List<ServiceHighlight> buildAiAndFxServices(BuildContext context) => [
+List<ServiceHighlight> buildAiAndFxServices(BuildContext context, VoidCallback onOpenVoice) => [
   ServiceHighlight(
     icon: Icons.photo_camera_front_outlined,
     title: 'AI 카메라 환율 변환',
@@ -833,20 +888,7 @@ List<ServiceHighlight> buildAiAndFxServices(BuildContext context) => [
       final agreed = await _ensureVoiceTermsAgreed(context);
       if (!agreed) return;
 
-      final tts = VoiceTtsService();
-      final stt = VoiceSttService();
-
-      final controller = VoiceSessionController(
-        stt: stt,
-        tts: tts,
-      );
-
-      _openVoiceAssistantOverlay(
-        context,
-        controller,
-      );
-
-      controller.start(); // 🔊 세션 시작 + 첫 음성
+      onOpenVoice();
     },
 
   ),

@@ -32,6 +32,9 @@ class VoiceApi {
       }),
     );
 
+    print(res.statusCode);
+    print(res.body);
+
     return VoiceResDTO.fromJson(jsonDecode(res.body));
   }
 }
