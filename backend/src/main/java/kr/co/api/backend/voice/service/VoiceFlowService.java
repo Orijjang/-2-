@@ -10,25 +10,42 @@ import kr.co.api.backend.voice.domain.VoiceState;
 import kr.co.api.backend.voice.stateMachine.VoiceContext;
 import kr.co.api.backend.voice.stateMachine.VoiceStateMachine;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class VoiceFlowService {
 
     private final VoiceSessionService voiceSessionService;
     private final VoiceIntentClassifierService intentService;
     private final VoiceStateMachine stateMachine;
     private final VoiceStateGuard stateGuard;
+    private final DepositResolveService depositResolveService;
 
     public VoiceResDTO handle(String sessionId, VoiceReqDTO req) {
 
         VoiceState currentState = voiceSessionService.getState(sessionId);
-
+        log.info("🎯 [VOICE] currentState={}", currentState);
         // ✅ 클릭 이벤트는 classifier를 타지 않게 (약관/전자서명 버튼 등)
         VoiceIntent intent = (req.getIntent() != null)
                 ? req.getIntent()
                 : intentService.classify(req);
+        log.info("🎯 [VOICE] resolvedIntent={}", intent);
+
+        if (currentState.ordinal() <= VoiceState.S2_PROD_EXPLAIN.ordinal()
+                && req.getText() != null
+                && req.getDpstId() == null) {
+
+            depositResolveService.resolveProductCode(req.getText())
+                    .ifPresent(productCode -> {
+                        voiceSessionService.setProductCode(sessionId, productCode);
+                        req.setDpstId(productCode); // 이후 로직 통일
+                        log.info("🎇 prodCode : " + productCode);
+                    });
+        }
+
 
         // ✅ productCode는 "req.dpstId 우선, 없으면 세션"으로
         VoiceContext ctx = buildContext(sessionId, req);

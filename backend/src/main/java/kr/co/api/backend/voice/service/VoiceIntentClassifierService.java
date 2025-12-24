@@ -36,7 +36,7 @@ public class VoiceIntentClassifierService {
         if (containsAny(text, "다른", "다른거", "다른상품")) return VoiceIntent.REQ_OTHER;
 
         if (containsAny(text, "설명", "뭐야", "알려줘", "자세히")) return VoiceIntent.REQ_EXPLAIN;
-        if (containsAny(text, "가입", "신청", "개설")) return VoiceIntent.REQ_JOIN;
+        if (containsAny(text, "신청", "개설")) return VoiceIntent.REQ_JOIN;
 
         return null;
     }

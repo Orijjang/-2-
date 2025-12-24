@@ -54,4 +54,6 @@ public interface DepositMapper {
     int updateDepositDraft(DpstAcctDraftDTO draft);
 
     int deleteDepositDraft(@Param("dpstId") String dpstId, @Param("custCode") String custCode);
+
+    List<ProductDTO> findDpstByName(String keyword);
 }

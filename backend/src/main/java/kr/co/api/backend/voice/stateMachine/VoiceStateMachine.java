@@ -16,12 +16,23 @@ public class VoiceStateMachine {
 
         return switch (current) {
 
-            case S0_IDLE ->
-                    (intent == VoiceIntent.REQ_RECOMMEND)
-                            ? (ctx.hasProduct()
-                            ? VoiceState.S2_PROD_EXPLAIN
-                            : VoiceState.S1_RECOMMEND)
-                            : current;
+            case S0_IDLE -> {
+                if (intent == VoiceIntent.REQ_RECOMMEND) {
+                    if (ctx.hasProduct()) {
+                        yield VoiceState.S2_PROD_EXPLAIN;
+                    } else {
+                        yield VoiceState.S1_RECOMMEND;
+                    }
+                }
+
+                if (intent == VoiceIntent.REQ_JOIN || intent == VoiceIntent.REQ_EXPLAIN) {
+                    if (ctx.hasProduct()) {
+                        yield VoiceState.S2_PROD_EXPLAIN;
+                    }
+                }
+
+                yield current;
+            }
 
             case S1_RECOMMEND ->
                     switch (intent) {

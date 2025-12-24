@@ -20,7 +20,6 @@ public class VoiceApiController {
         log.info("🎤 [VOICE] sessionId={}", sessionId);
         log.info("🎤 [VOICE] text={}", voiceReq.getText());
         log.info("🎤 [VOICE] dpstId={}", voiceReq.getDpstId());
-        log.info("🎤 [VOICE] intent={}", voiceReq.getIntent());
         VoiceResDTO res = flowService.handle(sessionId, voiceReq);
         log.info("🎤 [VOICE] nextState={}", res.getCurrentState());
         log.info("🎤 [VOICE] endReason={}", res.getEndReason());

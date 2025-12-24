@@ -9,6 +9,7 @@ import '../script/voice_script_resolver.dart';
 import '../service/voice_api.dart';
 import '../service/voice_stt_service.dart';
 import '../service/voice_tts_service.dart';
+import '../ui/voice_nav_command.dart';
 import '../ui/voice_ui_state.dart';
 
 class VoiceSessionController {
@@ -22,31 +23,43 @@ class VoiceSessionController {
   final ValueNotifier<double> volume =
   ValueNotifier(0.0);
 
+  final ValueNotifier<VoiceNavCommand?> navCommand =
+  ValueNotifier(null);
+
   final VoiceSttService _stt;
   final VoiceTtsService _tts;
   final _uuid = Uuid();
   String _generateSessionId() {
     return _uuid.v4();
   }
-  late final String _sessionId;
+  String? _sessionId;
+
+  bool _started = false; // ⭐ 최초 idle 진입 여부
+
+  void attachOverlay() {
+    if (_started) return;
+
+    _started = true;
+    _startInternal();
+  }
 
 
   VoiceSessionController({
     required VoiceSttService stt,
     required VoiceTtsService tts,
   })  : _stt = stt,
-        _tts = tts {
-    _startInternal();
-  }
+        _tts = tts ;
 
 
   Future<void> _startInternal() async {
+    if (_sessionId != null) return;
     _sessionId = _generateSessionId();
 
     uiState.value = VoiceUiState.speaking;
     await _playScript(initial: true);
     uiState.value = VoiceUiState.idle;
   }
+
 
 
 
@@ -74,7 +87,7 @@ class VoiceSessionController {
   /// 3️⃣ 서버에 전달
   Future<void> _sendToServer(String text) async {
     final res = await VoiceApi.process(
-      sessionId: _sessionId,
+      sessionId: _sessionId!,
       text: text,
     );
 
@@ -84,6 +97,14 @@ class VoiceSessionController {
   /// 4️⃣ 서버 응답 처리
   Future<void> _handleServerResponse(VoiceResDTO res) async {
     _state = res.currentState;
+
+    if (res.currentState == VoiceState.s2ProductExplain &&
+        res.productCode != null) {
+      navCommand.value = VoiceNavCommand(
+        type: VoiceNavType.openDepositView,
+        productCode: res.productCode,
+      );
+    }
 
     if (res.endReason != null) {
       uiState.value = VoiceUiState.speaking;
