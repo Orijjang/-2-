@@ -11,11 +11,15 @@ class ApiService {
   static const String base2Url = "http://192.168.0.209:8080/backend/api/mobile";  // 케이블 연결 했을 때 로컬 테스트(본인 컴퓨터 IP로 바꿔야함)
 
   // 현재 테스트 환경에 맞춰 선택하세요
-  static const String currentUrl = _prodUrl;
+  static const String currentUrl = base2Url;
 
   static const _storage = FlutterSecureStorage();
   static Future<Map<String, String>> getAuthHeaders() async {
     String? token = await _storage.read(key: 'auth_token');
+    print("🚩 [DEBUG] 현재 저장된 토큰: $token");
+    if (token == null) {
+      print("🚩 [ERROR] 토큰이 없습니다. 로그인이 필요합니다.");
+    }
     return {
       "Content-Type": "application/json",
       "Authorization": "Bearer $token", // ★ 여기가 핵심! 서버에 출입증 제시
