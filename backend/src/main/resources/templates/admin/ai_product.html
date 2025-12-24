@@ -109,6 +109,160 @@
             .search-input-mini { width: 200px; height: 36px; border: 1px solid #ddd; border-radius: 4px; padding: 0 10px; }
             .btn-search-mini { height: 36px; padding: 0 15px; background: #22304e; color: #fff; border:none; border-radius: 4px; cursor: pointer; }
 
+            /* 설문 등록/수정 모달 */
+            :root {
+                --main-pale-blue: #B7C9E2;
+                --sub-ivory-beige: #F7F3EE;
+                --point-dusty-navy: #3C4F76;
+                --background-off-white: #FAFAFA;
+            }
+
+            .modal-overlay {
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(60, 79, 118, 0.35);
+                display: none;
+                align-items: center;
+                justify-content: center;
+                z-index: 2000;
+            }
+
+            .modal-overlay.is-visible { display: flex; }
+
+            .survey-modal {
+                width: min(900px, 92vw);
+                background: var(--background-off-white);
+                border-radius: 12px;
+                box-shadow: 0 20px 45px rgba(34, 48, 78, 0.25);
+                border: 1px solid rgba(60, 79, 118, 0.2);
+                overflow: hidden;
+            }
+
+            .survey-modal__header {
+                background: var(--main-pale-blue);
+                padding: 18px 24px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+
+            .survey-modal__title {
+                font-size: 18px;
+                font-weight: 700;
+                color: var(--point-dusty-navy);
+            }
+
+            .survey-modal__body {
+                padding: 24px;
+                background: var(--background-off-white);
+            }
+
+            .survey-modal__footer {
+                padding: 16px 24px 22px;
+                display: flex;
+                justify-content: flex-end;
+                gap: 10px;
+                background: var(--sub-ivory-beige);
+            }
+
+            .modal-close {
+                background: transparent;
+                border: none;
+                font-size: 20px;
+                cursor: pointer;
+                color: var(--point-dusty-navy);
+            }
+
+            .form-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 16px 20px;
+            }
+
+            .form-group {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+            }
+
+            .form-group label {
+                font-size: 13px;
+                font-weight: 600;
+                color: #333;
+            }
+
+            .form-group input,
+            .form-group textarea,
+            .form-group select {
+                border: 1px solid #d5dbe6;
+                border-radius: 6px;
+                padding: 10px 12px;
+                font-size: 13px;
+                background: #fff;
+                color: #333;
+            }
+
+            .form-group textarea {
+                min-height: 90px;
+                resize: vertical;
+            }
+
+            .form-group.full {
+                grid-column: 1 / -1;
+            }
+
+            .meta-list {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 12px;
+                margin-top: 8px;
+                padding: 12px;
+                border-radius: 8px;
+                background: #fff;
+                border: 1px solid #e2e6ef;
+                font-size: 12px;
+                color: #666;
+            }
+
+            .meta-item strong {
+                display: block;
+                font-size: 12px;
+                color: #22304e;
+                margin-bottom: 4px;
+            }
+
+            .btn-primary {
+                background: var(--point-dusty-navy);
+                color: #fff;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 600;
+            }
+
+            .btn-secondary {
+                background: #fff;
+                color: #333;
+                border: 1px solid #c8ced8;
+                padding: 8px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 13px;
+                font-weight: 600;
+            }
+
+            .btn-disabled {
+                opacity: 0.6;
+                cursor: not-allowed;
+            }
+
+            .survey-table-actions {
+                display: flex;
+                gap: 6px;
+                justify-content: center;
+            }
         </style>
 
         <div class="board-admin">
@@ -227,7 +381,7 @@
                 <div class="board-header">
                     <h2>AI 설문지 콘텐츠 관리</h2>
                     <div class="header-controls">
-                        <button class="btn-create">
+                        <button class="btn-create" id="survey-create-btn" type="button">
                             <i class="fa-solid fa-plus"></i> 신규 설문 등록
                         </button>
                     </div>
@@ -249,64 +403,75 @@
                             <th>콘텐츠 관리</th>
                         </tr>
                         </thead>
-                        <tbody>
-                        <tr>
-                            <td>1</td>
-                            <td>투자 성향</td>
-                            <td style="font-weight: bold; text-align: left !important; padding-left: 15px;">글로벌 시장 트렌드 및 위험 감수성 조사</td>
-                            <td>12문항</td>
-                            <td><span style="color:#d32f2f; font-weight:bold;">High</span></td>
-                            <td>2024-12-01</td>
-                            <td><span class="survey-active">사용중</span></td>
-                            <td>
-                                <button class="btn-detail">문항 수정</button>
-                                <button class="btn-detail" style="color:#666;">미리보기</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>2</td>
-                            <td>소비/지출</td>
-                            <td style="font-weight: bold; text-align: left !important; padding-left: 15px;">환테크 입문자용 기초 설문</td>
-                            <td>8문항</td>
-                            <td><span style="color:#f57c00; font-weight:bold;">Medium</span></td>
-                            <td>2024-11-20</td>
-                            <td><span class="survey-active">사용중</span></td>
-                            <td>
-                                <button class="btn-detail">문항 수정</button>
-                                <button class="btn-detail" style="color:#666;">미리보기</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>3</td>
-                            <td>목적 자금</td>
-                            <td style="font-weight: bold; text-align: left !important; padding-left: 15px;">해외 여행 및 유학 자금 계획</td>
-                            <td>10문항</td>
-                            <td><span style="color:#f57c00; font-weight:bold;">Medium</span></td>
-                            <td>2024-10-15</td>
-                            <td><span class="survey-inactive">미사용</span></td>
-                            <td>
-                                <button class="btn-detail">문항 수정</button>
-                                <button class="btn-detail" style="color:#666;">미리보기</button>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td>4</td>
-                            <td>자산 규모</td>
-                            <td style="font-weight: bold; text-align: left !important; padding-left: 15px;">고액 자산가 전용 포트폴리오 진단</td>
-                            <td>15문항</td>
-                            <td><span style="color:#d32f2f; font-weight:bold;">High</span></td>
-                            <td>2024-12-10</td>
-                            <td><span class="survey-active">사용중</span></td>
-                            <td>
-                                <button class="btn-detail">문항 수정</button>
-                                <button class="btn-detail" style="color:#666;">미리보기</button>
-                            </td>
-                        </tr>
-                        </tbody>
+                        <tbody id="survey-table-body"></tbody>
                     </table>
                 </div>
 
             </section>
+        </div>
+
+        <div class="modal-overlay" id="survey-modal-overlay" aria-hidden="true">
+            <div class="survey-modal" role="dialog" aria-modal="true" aria-labelledby="survey-modal-title">
+                <div class="survey-modal__header">
+                    <div class="survey-modal__title" id="survey-modal-title">설문 등록</div>
+                    <button class="modal-close" type="button" id="survey-modal-close" aria-label="닫기">✕</button>
+                </div>
+                <div class="survey-modal__body">
+                    <form id="survey-form">
+                        <div class="form-grid">
+                            <div class="form-group full">
+                                <label for="survey-title">설문 제목</label>
+                                <input type="text" id="survey-title" name="title" placeholder="설문 제목을 입력하세요" required>
+                            </div>
+                            <div class="form-group full">
+                                <label for="survey-description">설문 설명</label>
+                                <textarea id="survey-description" name="description" placeholder="설문 설명을 입력하세요"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label for="survey-category">카테고리</label>
+                                <input type="text" id="survey-category" name="category" placeholder="예) 투자 성향">
+                            </div>
+                            <div class="form-group">
+                                <label for="survey-weight">AI 가중치</label>
+                                <select id="survey-weight" name="weight">
+                                    <option value="High">High</option>
+                                    <option value="Medium">Medium</option>
+                                    <option value="Low">Low</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="survey-question-count">문항 수</label>
+                                <input type="number" id="survey-question-count" name="questionCount" min="1" value="1">
+                            </div>
+                            <div class="form-group">
+                                <label for="survey-status">사용 여부</label>
+                                <select id="survey-status" name="isActive">
+                                    <option value="Y">사용중</option>
+                                    <option value="N">미사용</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="meta-list" id="survey-meta">
+                            <div class="meta-item">
+                                <strong>등록일</strong>
+                                <span id="survey-created-at">-</span>
+                            </div>
+                            <div class="meta-item">
+                                <strong>최근 수정일</strong>
+                                <span id="survey-updated-at">-</span>
+                            </div>
+                            <div class="meta-item">
+                                <strong>작성자</strong>
+                                <span id="survey-created-by">admin</span>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="survey-modal__footer">
+                    <button type="button" class="btn-secondary" id="survey-modal-cancel">취소</button>
+                    <button type="button" class="btn-primary" id="survey-modal-save">저장</button>
+                </div>
+            </div>
         </div>
 
     </section>
@@ -323,9 +488,209 @@
                 alert('해당 고객에게 푸시 알림을 발송했습니다.');
             });
 
-            $('.btn-create').click(function() {
-                alert('새로운 설문지를 등록하는 팝업이 열립니다.');
+            const surveyModal = $('#survey-modal-overlay');
+            const surveyForm = $('#survey-form');
+            const surveyTableBody = $('#survey-table-body');
+            const surveyModalTitle = $('#survey-modal-title');
+            const surveySaveButton = $('#survey-modal-save');
+            const surveyMetaCreatedAt = $('#survey-created-at');
+            const surveyMetaUpdatedAt = $('#survey-updated-at');
+
+            const surveys = [
+                {
+                    id: 1,
+                    category: '투자 성향',
+                    title: '글로벌 시장 트렌드 및 위험 감수성 조사',
+                    questionCount: 12,
+                    weight: 'High',
+                    updatedAt: '2024-12-01',
+                    isActive: 'Y',
+                    description: '고객 투자 성향을 분석하기 위한 설문입니다.',
+                    createdAt: '2024-11-15',
+                    createdBy: 'admin'
+                },
+                {
+                    id: 2,
+                    category: '소비/지출',
+                    title: '환테크 입문자용 기초 설문',
+                    questionCount: 8,
+                    weight: 'Medium',
+                    updatedAt: '2024-11-20',
+                    isActive: 'Y',
+                    description: '환테크 경험이 적은 고객을 위한 설문입니다.',
+                    createdAt: '2024-11-01',
+                    createdBy: 'admin'
+                },
+                {
+                    id: 3,
+                    category: '목적 자금',
+                    title: '해외 여행 및 유학 자금 계획',
+                    questionCount: 10,
+                    weight: 'Medium',
+                    updatedAt: '2024-10-15',
+                    isActive: 'N',
+                    description: '목적 자금 마련 계획을 파악합니다.',
+                    createdAt: '2024-09-22',
+                    createdBy: 'admin'
+                },
+                {
+                    id: 4,
+                    category: '자산 규모',
+                    title: '고액 자산가 전용 포트폴리오 진단',
+                    questionCount: 15,
+                    weight: 'High',
+                    updatedAt: '2024-12-10',
+                    isActive: 'Y',
+                    description: '고액 자산가 고객 맞춤 포트폴리오를 위한 설문입니다.',
+                    createdAt: '2024-12-01',
+                    createdBy: 'admin'
+                }
+            ];
+            let editingSurveyId = null;
+
+            const weightColorMap = {
+                High: '#d32f2f',
+                Medium: '#f57c00',
+                Low: '#2e7d32'
+            };
+
+            const formatStatusBadge = (isActive) => {
+                if (isActive === 'Y') {
+                    return '<span class="survey-active">사용중</span>';
+                }
+                return '<span class="survey-inactive">미사용</span>';
+            };
+
+            const renderSurveys = () => {
+                surveyTableBody.empty();
+                if (surveys.length === 0) {
+                    surveyTableBody.append('<tr><td colspan="8">등록된 설문이 없습니다.</td></tr>');
+                    return;
+                }
+                surveys.forEach((survey) => {
+                    const weightColor = weightColorMap[survey.weight] || '#333';
+                    const rowHtml = `
+                        <tr>
+                            <td>${survey.id}</td>
+                            <td>${survey.category || '-'}</td>
+                            <td style="font-weight: bold; text-align: left !important; padding-left: 15px;">${survey.title}</td>
+                            <td>${survey.questionCount}문항</td>
+                            <td><span style="color:${weightColor}; font-weight:bold;">${survey.weight}</span></td>
+                            <td>${survey.updatedAt}</td>
+                            <td>${formatStatusBadge(survey.isActive)}</td>
+                            <td>
+                                <div class="survey-table-actions">
+                                    <button class="btn-detail btn-edit" data-id="${survey.id}">문항 수정</button>
+                                    <button class="btn-detail btn-preview" data-id="${survey.id}" style="color:#666;">미리보기</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                    surveyTableBody.append(rowHtml);
+                });
+            };
+
+            const openModal = (mode, survey = null) => {
+                surveyModal.addClass('is-visible').attr('aria-hidden', 'false');
+                surveyForm.find('input, textarea, select').prop('disabled', mode === 'preview');
+                surveySaveButton.toggle(mode !== 'preview');
+
+                if (mode === 'create') {
+                    surveyModalTitle.text('설문 등록');
+                    surveyForm.trigger('reset');
+                    $('#survey-question-count').val(1);
+                    $('#survey-status').val('Y');
+                    $('#survey-weight').val('High');
+                    surveyMetaCreatedAt.text(new Date().toISOString().slice(0, 10));
+                    surveyMetaUpdatedAt.text(new Date().toISOString().slice(0, 10));
+                    $('#survey-created-by').text('admin');
+                    editingSurveyId = null;
+                    return;
+                }
+
+                if (!survey) {
+                    return;
+                }
+
+                surveyModalTitle.text(mode === 'edit' ? '설문 수정' : '설문 미리보기');
+                $('#survey-title').val(survey.title);
+                $('#survey-description').val(survey.description);
+                $('#survey-category').val(survey.category);
+                $('#survey-weight').val(survey.weight);
+                $('#survey-question-count').val(survey.questionCount);
+                $('#survey-status').val(survey.isActive);
+                surveyMetaCreatedAt.text(survey.createdAt || '-');
+                surveyMetaUpdatedAt.text(survey.updatedAt || '-');
+                $('#survey-created-by').text(survey.createdBy || 'admin');
+                editingSurveyId = survey.id;
+            };
+
+            const closeModal = () => {
+                surveyModal.removeClass('is-visible').attr('aria-hidden', 'true');
+            };
+
+            const findSurvey = (id) => surveys.find((survey) => survey.id === id);
+
+            const updateSurveyData = (survey, formData) => ({
+                ...survey,
+                title: formData.title,
+                description: formData.description,
+                category: formData.category,
+                weight: formData.weight,
+                questionCount: Number(formData.questionCount),
+                isActive: formData.isActive,
+                updatedAt: new Date().toISOString().slice(0, 10),
+                createdBy: survey.createdBy || 'admin'
             });
+
+            const handleSaveSurvey = () => {
+                const formData = Object.fromEntries(new FormData(surveyForm[0]).entries());
+                if (!formData.title) {
+                    alert('설문 제목을 입력해주세요.');
+                    return;
+                }
+                if (editingSurveyId) {
+                    const index = surveys.findIndex((survey) => survey.id === editingSurveyId);
+                    if (index >= 0) {
+                        surveys[index] = updateSurveyData(surveys[index], formData);
+                    }
+                } else {
+                    const newSurvey = updateSurveyData(
+                        {
+                            id: surveys.length ? Math.max(...surveys.map((survey) => survey.id)) + 1 : 1,
+                            createdAt: new Date().toISOString().slice(0, 10),
+                            createdBy: 'admin'
+                        },
+                        formData
+                    );
+                    surveys.unshift(newSurvey);
+                }
+                renderSurveys();
+                closeModal();
+            };
+
+            $('#survey-create-btn').on('click', () => openModal('create'));
+            $('#survey-modal-close, #survey-modal-cancel').on('click', closeModal);
+            surveySaveButton.on('click', handleSaveSurvey);
+            surveyModal.on('click', (event) => {
+                if ($(event.target).is('#survey-modal-overlay')) {
+                    closeModal();
+                }
+            });
+
+            surveyTableBody.on('click', '.btn-edit', function() {
+                const surveyId = Number($(this).data('id'));
+                const survey = findSurvey(surveyId);
+                openModal('edit', survey);
+            });
+
+            surveyTableBody.on('click', '.btn-preview', function() {
+                const surveyId = Number($(this).data('id'));
+                const survey = findSurvey(surveyId);
+                openModal('preview', survey);
+            });
+
+            renderSurveys();
         });
     </script>
 </th:block>
