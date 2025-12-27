@@ -1,85 +1,94 @@
 package kr.co.api.backend.controller;
 
 import kr.co.api.backend.dto.FrgnExchOnlineDTO;
+import kr.co.api.backend.dto.RateDTO;
 import kr.co.api.backend.jwt.CustomUserDetails;
 import kr.co.api.backend.service.OnlineExchangeService;
+import kr.co.api.backend.service.RateQueryService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @RestController
-@RequestMapping("/api/exchange")
+@RequestMapping("/api/mobile/exchange")
 @RequiredArgsConstructor
 public class OnlineExchangeController {
 
     private final OnlineExchangeService onlineExchangeService;
+    private final RateQueryService rateQueryService;
+
+    /**
+     * 환율 목록 (통화별 최신 1건)
+     */
+    @GetMapping("/rates")
+    public List<RateDTO> getRates() {
+        return rateQueryService.getLatestRates();
+    }
+
+    /**
+     * 특정 통화 환율 히스토리
+     */
+    @GetMapping("/rates/{currency}")
+    public List<RateDTO> getRateHistory(
+            @PathVariable String currency
+    ) {
+        return rateQueryService.getRateHistory(currency);
+    }
 
     /**
      * 온라인 환전 요청
      */
     @PostMapping("/online")
     public ResponseEntity<?> onlineExchange(
-            @RequestBody FrgnExchOnlineDTO dto
+            @RequestBody FrgnExchOnlineDTO dto,
+            Authentication authentication
     ) {
-        /* =========================
-           1. 로그인 사용자(userId) 조회
-           ========================= */
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null ||
-                !(authentication.getPrincipal() instanceof CustomUserDetails)) {
-            return ResponseEntity
-                    .status(401)
-                    .body("인증 정보가 없습니다.");
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
         }
 
-        CustomUserDetails user =
-                (CustomUserDetails) authentication.getPrincipal();
+        // 1. ID 추출 통일
+        String custCode = authentication.getName();
 
-        // JWT subject = 로그인 userId
-        String userId = user.getUsername();
+        // 2. 로그 찍어서 확인해보기 (디버깅용)
+        System.out.println(">>> 환전 요청 userId: " + custCode);
+        log.info("컨트롤러 dto" + dto.toString());
+        onlineExchangeService.processOnlineExchange(dto, custCode);
 
-        /* =========================
-           2. 온라인 환전 처리
-           ========================= */
-        onlineExchangeService.processOnlineExchange(dto, userId);
-
-        /* =========================
-           3. 응답
-           ========================= */
         return ResponseEntity.ok("온라인 환전이 정상적으로 처리되었습니다.");
     }
 
-
-
+    /**
+     * 내 환전 계좌 조회
+     */
     @GetMapping("/accounts")
     public ResponseEntity<?> getMyExchangeAccounts(
-            @RequestParam String currency
+            @RequestParam String currency,
+            Authentication authentication
     ) {
-        Authentication authentication =
-                SecurityContextHolder.getContext().getAuthentication();
-
-        if (authentication == null ||
-                !(authentication.getPrincipal() instanceof CustomUserDetails)) {
-            return ResponseEntity.status(401).body("인증 정보가 없습니다.");
+        // 인증 체크
+        if (authentication == null || !authentication.isAuthenticated()) {
+            return ResponseEntity.status(401).body(Map.of("message", "Unauthorized"));
         }
 
-        String userId =
-                ((CustomUserDetails) authentication.getPrincipal()).getUsername();
+        // 1. 복잡한 instanceof 제거 -> getName()으로 통일
+        String custCode = authentication.getName(); // custCode 출력됨
 
-        Map<String, Object> result =
-                onlineExchangeService.getMyExchangeAccounts(userId, currency);
+        // 2. 로그 찍어서 확인해보기 (에러 원인 파악용)
+        System.out.println(">>> 계좌 조회 요청 userId: " + custCode);
+
+        // 3. 서비스 호출
+        Map<String, Object> result = onlineExchangeService.getMyExchangeAccounts(custCode, currency);
 
         return ResponseEntity.ok(result);
     }
-
-
-
 
 
 

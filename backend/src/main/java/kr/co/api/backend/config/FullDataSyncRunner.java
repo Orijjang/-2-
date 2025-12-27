@@ -26,7 +26,7 @@ public class FullDataSyncRunner implements ApplicationRunner {
     public void run(ApplicationArguments args) throws Exception {
 
 
-        // 🚀 1. 모든 인덱스 강제 재생성 (기존 데이터 삭제 후 Nori 설정 적용)
+        //  1. 모든 인덱스 강제 재생성 (기존 데이터 삭제 후 Nori 설정 적용)
         recreateIndex(ProductDocument.class);
         recreateIndex(FaqDocument.class);
         recreateIndex(NoticeDocument.class);

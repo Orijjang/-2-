@@ -5,9 +5,10 @@ import 'package:test_main/utils/device_manager.dart';
 
 class ApiService {
   // 환경에 맞게 주소 변경 (백엔드 Controller 경로: /api/mobile/member)
-  static const String _prodUrl = "http://34.64.124.33:8080/backend/api/mobile";
+  static const String _prodUrl = "https://flobank.kro.kr/backend/api/mobile";
+  static const String _prodUrlHttp = "http://34.64.124.33:8080//backend/api/mobile";
   static const String baseUrl = "http://10.0.2.2:8080/backend/api/mobile"; // 에뮬레이터
-  static const String base2Url = "http://192.168.0.209:8080/backend/api/mobile";  // 케이블 연결 했을 때 로컬 테스트(본인 컴퓨터 IP로 바꿔야함)
+  static const String base2Url = "http://192.168.0.207:8080/backend/api/mobile";  // 케이블 연결 했을 때 로컬 테스트(본인 컴퓨터 IP로 바꿔야함)
 
   // 현재 테스트 환경에 맞춰 선택하세요
   static const String currentUrl = _prodUrl;
@@ -15,6 +16,10 @@ class ApiService {
   static const _storage = FlutterSecureStorage();
   static Future<Map<String, String>> getAuthHeaders() async {
     String? token = await _storage.read(key: 'auth_token');
+    print("🚩 [DEBUG] 현재 저장된 토큰: $token");
+    if (token == null) {
+      print("🚩 [ERROR] 토큰이 없습니다. 로그인이 필요합니다.");
+    }
     return {
       "Content-Type": "application/json",
       "Authorization": "Bearer $token", // ★ 여기가 핵심! 서버에 출입증 제시

@@ -46,4 +46,14 @@ public interface DepositMapper {
     public void updateBalBalance(FrgnAcctBalanceDTO frgnAcctBalanceDTO);
     public List<TermsHistDTO> selectDpstTermsMaster();
     public TermsHistDTO selectTermById(String thistTermOrder, String thistTermCate);
+
+    DpstAcctDraftDTO findDepositDraft(@Param("dpstId") String dpstId, @Param("custCode") String custCode);
+
+    void insertDepositDraft(DpstAcctDraftDTO draft);
+
+    int updateDepositDraft(DpstAcctDraftDTO draft);
+
+    int deleteDepositDraft(@Param("dpstId") String dpstId, @Param("custCode") String custCode);
+
+    List<ProductDTO> findDpstByName(String keyword);
 }
