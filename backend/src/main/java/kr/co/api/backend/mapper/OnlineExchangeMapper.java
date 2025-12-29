@@ -6,8 +6,6 @@ import org.apache.ibatis.annotations.Param;
 @Mapper
 public interface OnlineExchangeMapper {
 
-
-
     String selectCustNameByCustCode(@Param("custCode") String custCode);
 
 
@@ -33,14 +31,14 @@ public interface OnlineExchangeMapper {
     /* =========================
        2. 원화 계좌 조회 (FOR UPDATE)
        ========================= */
-    CustAcctDTO selectKrwAcctForUpdate(@Param("acctNo") String acctNo);
+    CustAcctDTO selectKrwAcctForUpdate(@Param("custCode") String custCode);
 
 
     /* =========================
        3. 외화 자식 계좌 조회 (FOR UPDATE)
        ========================= */
     FrgnAcctBalanceDTO selectFrgnBalanceForUpdate(
-            @Param("balNo") String balNo
+            @Param("balNo") String balNo, String currency
     );
 
 

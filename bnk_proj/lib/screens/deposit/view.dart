@@ -6,6 +6,8 @@ import 'package:test_main/services/deposit_service.dart';
 import 'package:test_main/models/terms.dart';
 import 'package:test_main/services/terms_service.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:test_main/screens/deposit/step_3.dart';
+import 'package:test_main/services/deposit_draft_service.dart';
 
 class DepositViewArgs {
   final String dpstId;
@@ -36,33 +38,76 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
   final DepositService _service =  DepositService();
   late Future<model.DepositProduct> _futureProduct;
   final TermsService _termsService = TermsService();
-  late Future<List<TermsDocument>> _futureTerms;
+  late Future<List<TermsDocument>>? _futureTerms;
+  final DepositDraftService _draftService = DepositDraftService();
+  bool _canResume = false;
 
   @override
   void initState() {
     super.initState();
     _futureProduct = _service.fetchProductDetail(widget.dpstId);
-    _futureTerms = _termsService.fetchTerms(status: 4);
+    _futureTerms =  Future.value(<TermsDocument>[]);
+    _checkDraftAvailability();
   }
+
+  void _setTab(int idx) {
+  setState(() {
+    _currentTab = idx;
+
+    // 🔥 약관 탭(2번)에 처음 진입할 때만 로딩
+    if (idx == 2 && _futureTerms == null) {
+      _futureTerms = _termsService
+          .fetchTerms(status: 4)
+          .catchError((_) => <TermsDocument>[]);
+    }
+  });
+}
+
+
 
 
   void _reload() {
     setState(() {
       _futureProduct = _service.fetchProductDetail(widget.dpstId);
-      _futureTerms = _termsService.fetchTerms(status: 4);
+
+      // 🔥 약관 탭을 이미 로딩한 적이 있을 때만 재요청
+      if (_futureTerms != null) {
+        _futureTerms = _termsService
+            .fetchTerms(status: 4)
+            .catchError((_) => <TermsDocument>[]);
+      }
     });
+
+    _checkDraftAvailability();
   }
 
 
   Future<void> _refreshProduct() async {
     _reload();
-    await Future.wait([
+
+    final futures = <Future>[
       _futureProduct,
-      _futureTerms,
-    ]);
+    ];
+
+    if (_futureTerms != null) {
+      futures.add(_futureTerms!);
+    }
+
+    await Future.wait(futures);
   }
 
 
+  Future<void> _checkDraftAvailability() async {
+    final draft = await _draftService.loadDraft(widget.dpstId);
+    final hasDraft =
+        draft != null && draft.application != null && (draft.step) >= 2;
+
+    if (mounted) {
+      setState(() {
+        _canResume = hasDraft;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -134,6 +179,8 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (_canResume) _buildResumeBanner(),
+                  if (_canResume) const SizedBox(height: 12),
                   _buildHeader(product),
                   const SizedBox(height: 20),
                   _buildTabs(),
@@ -317,6 +364,36 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
 
 
 
+  Widget _buildResumeBanner() {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.mainPaleBlue.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.mainPaleBlue),
+      ),
+      child: Row(
+        children: const [
+          Icon(
+            Icons.play_circle_fill,
+            color: AppColors.pointDustyNavy,
+          ),
+          SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '이전에 진행한 가입 내역이 있어 이어서 진행할 수 있습니다.',
+              style: TextStyle(
+                color: AppColors.pointDustyNavy,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+
 
 
   String _buildPeriodLabel(model.DepositProduct product) {
@@ -326,12 +403,12 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
     if (product.minPeriodMonth != null && product.maxPeriodMonth != null) {
       return "${product.minPeriodMonth}~${product.maxPeriodMonth}개월";
     }
-    return "기간 정보 없음";
+    return "제한 없음";
   }
 
   String _buildLimitLabel(model.DepositProduct product) {
     if (product.limits.isEmpty) {
-      return "한도\n정보 없음";
+      return "제한 없음";
     }
 
     final first = product.limits.first;
@@ -365,7 +442,7 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
           return Expanded(
             child: GestureDetector(
               onTap: () {
-                setState(() => _currentTab = idx);
+                _setTab(idx);
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
@@ -1468,7 +1545,9 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
   // ============================================================
   Widget _buildTermsTab(model.DepositProduct product) {
 
-
+    if (_futureTerms == null) {
+      return const Center(child: Text('약관을 불러오는 중입니다.'));
+    }
 
     final String delibNo =
     product.deliberationNumber.isNotEmpty
@@ -1526,10 +1605,8 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
           }
 
           final terms = snapshot.data ?? [];
-          final displayTerms = _buildTermsForProduct(product, terms);
-
-
-
+          final String? productGuidePath = _resolveProductPdfPath(product);
+          final displayTerms = _buildTermsForProduct(terms);
 
           return Container(
             padding: const EdgeInsets.all(18),
@@ -1538,46 +1615,32 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: AppColors.mainPaleBlue.withOpacity(0.8),
-
-            ),
-
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-              const Text(
-              '상품설명서 및 약관',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w800,
-                color: AppColors.pointDustyNavy,
-              ),
-
-
-
-
-
+                const Text(
+                  '상품설명서 및 약관',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.pointDustyNavy,
+                  ),
                 ),
-
-            const SizedBox(height: 8),
-            Text(
-              ' 최신 버전의 상품별 설명서와 약관을 제공합니다.',
-              style: TextStyle(
-                color: Colors.black87.withOpacity(0.7),
-                height: 1.5,
-              ),
-
-
-
-
-
-
+                const SizedBox(height: 8),
+                Text(
+                  ' 최신 버전의 상품별 설명서와 약관을 제공합니다.',
+                  style: TextStyle(
+                    color: Colors.black87.withOpacity(0.7),
+                    height: 1.5,
+                  ),
                 ),
-
-
                 const SizedBox(height: 16),
+                if (productGuidePath != null)
+                  _productGuideRow(product, productGuidePath),
                 ...displayTerms.map((t) => _termsRow(t)).toList(),
-                if (displayTerms.isEmpty)
+                if (productGuidePath == null && displayTerms.isEmpty)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(14),
@@ -1591,18 +1654,8 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
                     child: const Text(
                       '조회된 약관이 없습니다. 잠시 후 다시 시도해주세요.',
                       style: TextStyle(color: Colors.black54),
-
-
-
-
-
-
-
-                     ),
-
+                    ),
                   ),
-
-
                 const SizedBox(height: 28),
 
                 // ------------------------------------------------------
@@ -1675,57 +1728,32 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
     );
   }
 
-  List<TermsDocument> _buildTermsForProduct(
-      model.DepositProduct product, List<TermsDocument> terms) {
-
-
-
-    final List<TermsDocument> result = [];
-
-    final String productPdfUrl = _resolveProductPdfUrl(product).trim();
-
-    if (productPdfUrl.isNotEmpty) {
-      result.add(
-        TermsDocument(
-          id: null,
-          cate: null,
-          order: null,
-          title: '${product.name} 상품설명서',
-          version: 1,
-          regDate: null,
-          filePath: product.infoPdf,
-          content: '',
-          downloadUrl: productPdfUrl,
-        ),
-      );
-    }
+  List<TermsDocument> _buildTermsForProduct(List<TermsDocument> terms) {
     const specialTitle = 'flobank 외화예금 통합 특약';
 
-
-
-    result.addAll(
-      terms.where(
-            (t) => t.title.trim().toLowerCase() == specialTitle.toLowerCase(),
-      ),
-    );
-
-    return result;
+    return terms
+        .where(
+          (t) => t.title.trim().toLowerCase() == specialTitle.toLowerCase(),
+        )
+        .toList();
   }
 
-  String _resolveProductPdfUrl(model.DepositProduct product) {
-    if (product.infoPdfUrl.trim().isNotEmpty) {
-      return product.infoPdfUrl.trim();
+  String? _resolveProductPdfPath(model.DepositProduct product) {
+    final candidates = [product.infoPdfUrl.trim(), product.infoPdf.trim()];
+    for (final path in candidates) {
+      if (path.isNotEmpty) return path;
     }
 
-    final String fallback = product.infoPdf.trim();
-    if (fallback.isEmpty) return '';
+    return null;
+  }
 
-    final bool hasUploadsPrefix = fallback.contains('/uploads/');
-    final String normalizedPath = hasUploadsPrefix
-        ? (fallback.startsWith('/') ? fallback : '/$fallback')
-        : '/uploads/products/$fallback';
-
-    return '${TermsService.baseUrl}$normalizedPath';
+  Widget _productGuideRow(model.DepositProduct product, String pdfPath) {
+    return _documentRow(
+      title: '${product.name} 상품설명서',
+      subtitle: 'v${product.infoPdfVersion} · 상품 안내서',
+      onOpen: () => _openProductGuide(pdfPath, product.name),
+      onDownload: () => _downloadProductGuide(pdfPath, product.name),
+    );
   }
 
 
@@ -1733,7 +1761,12 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
 
 
 
-  Widget _termsRow(TermsDocument terms) {
+  Widget _documentRow({
+    required String title,
+    String? subtitle,
+    required VoidCallback onOpen,
+    required VoidCallback onDownload,
+  }) {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
@@ -1741,54 +1774,101 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
         borderRadius: BorderRadius.circular(10),
         color: AppColors.subIvoryBeige,
       ),
-
-
       child: ListTile(
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         title: Text(
-          terms.title,
+          title,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.w700,
             color: AppColors.pointDustyNavy,
           ),
         ),
-        subtitle: Text(
-          'v${terms.version} · ${terms.regDate ?? "등록일 미상"}',
-          style: const TextStyle(fontSize: 12, color: Colors.black54),
-        ),
+        subtitle: subtitle == null
+            ? null
+            : Text(
+                subtitle,
+                style: const TextStyle(fontSize: 12, color: Colors.black54),
+              ),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
-
           children: [
             IconButton(
-              onPressed: () => _openTerms(terms),
-              icon:
-              const Icon(Icons.description_outlined, color: AppColors.pointDustyNavy),
+              onPressed: onOpen,
+              icon: const Icon(
+                Icons.description_outlined,
+                color: AppColors.pointDustyNavy,
+              ),
               tooltip: '보기',
             ),
             const SizedBox(width: 4),
             IconButton(
-              onPressed: () => _downloadTerms(terms),
-              icon:
-              const Icon(Icons.download_outlined, color: AppColors.pointDustyNavy),
+              onPressed: onDownload,
+              icon: const Icon(
+                Icons.download_outlined,
+                color: AppColors.pointDustyNavy,
+              ),
               tooltip: '다운로드',
             ),
-
-
-
-
-
-
-
           ],
         ),
-        onTap: () => _openTerms(terms),
-
-
+        onTap: onOpen,
       ),
-
     );
+  }
+
+  Widget _termsRow(TermsDocument terms) {
+    return _documentRow(
+      title: terms.title,
+      subtitle: 'v${terms.version} · ${terms.regDate ?? "등록일 미상"}',
+      onOpen: () => _openTerms(terms),
+      onDownload: () => _downloadTerms(terms),
+    );
+  }
+
+  Future<void> _openProductGuide(String path, String productName) async {
+    print("👉 PRODUCT PDF PATH = $path");
+    print("👉 BUILT URI = ${_buildProductUri(path)}");
+    await _launchDocument(path, productName, LaunchMode.externalApplication);
+  }
+
+  Future<void> _downloadProductGuide(String path, String productName) async {
+    await _launchDocument(path, productName, LaunchMode.externalApplication);
+  }
+
+  Future<void> _launchDocument(
+    String path,
+    String productName,
+    LaunchMode mode,
+  ) async {
+
+    print("👉 RAW PATH = $path");
+
+    final uri = _buildProductUri(path);
+    print("👉 FINAL URI = $uri");
+
+    if (uri == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('유효한 상품 설명서 경로가 없습니다: $productName'),
+            backgroundColor: Colors.redAccent,
+          ),
+        );
+      }
+      return;
+    }
+
+    final ok = await launchUrl(uri, mode: mode);
+
+    if (!ok && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('상품 설명서를 열 수 없습니다: $productName'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
   }
 
 
@@ -1802,8 +1882,34 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
     await _launchTerms(terms, LaunchMode.externalApplication);
   }
 
+  Uri? _buildProductUri(String rawPath) {
+    final String raw = rawPath.trim();
+    if (raw.isEmpty) return null;
+
+    final Uri? parsed = Uri.tryParse(raw);
+    if (parsed == null) return null;
+    if (parsed.hasScheme) return parsed;
+
+    final Uri base = Uri.parse(TermsService.baseUrl);
+
+    // 1) 절대 경로 형태("/uploads/..." or "/api/pdf/products/...") → 앞의 슬래시 제거 후 resolve
+    if (raw.startsWith('/')) {
+      return base.resolve(raw.substring(1));
+    }
+
+    // 2) 파일명만 내려오는 경우 → 신규 PdfController 경로로 prefix
+    final String normalized = raw.contains('/')
+        ? raw
+        : 'api/pdf/products/$raw';
+
+    return base.resolve(normalized);
+  }
+
   Uri? _buildTermsUri(TermsDocument terms) {
-    final raw = terms.downloadUrl.trim();
+    final raw = terms.downloadUrl.trim().isNotEmpty
+        ? terms.downloadUrl.trim()
+        : terms.filePath.trim();
+
     if (raw.isEmpty) return null;
 
     final Uri? parsed = Uri.tryParse(raw);
@@ -1856,16 +1962,8 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
       children: [
         Expanded(
           child: ElevatedButton(
-            onPressed: () {
-              Navigator.pushNamed(
-                context,
-                DepositStep1Screen.routeName,
-                arguments: DepositStep1Args(
-                  dpstId: widget.dpstId,
-                  product: product,
-                ),
-              );
-            },
+            onPressed: () => _handleJoin(context, product),
+
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.pointDustyNavy,
               foregroundColor: Colors.white,
@@ -1910,6 +2008,67 @@ class _DepositViewScreenState extends State<DepositViewScreen> {
       ],
     );
   }
+
+  Future<void> _handleJoin(
+      BuildContext context,
+      model.DepositProduct product,
+      ) async {
+    final draft = await _draftService.loadDraft(widget.dpstId);
+
+    final canResume =
+        draft != null && draft.application != null && (draft.step) >= 2;
+
+    if (canResume) {
+      final resume = await showDialog<bool>(
+        context: context,
+        builder: (context) {
+          return AlertDialog(
+            title: const Text('이어서 진행할까요?'),
+            content: const Text('이전에 진행한 가입 내역이 있습니다. 이어서 진행하시겠어요?'),
+            actions: [
+              TextButton(
+                onPressed: () async {
+                  await _draftService.clearDraft(widget.dpstId);
+                  if (mounted) Navigator.of(context).pop(false);
+                },
+                child: const Text('새로 시작'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('이어하기'),
+              ),
+            ],
+          );
+        },
+      );
+
+      if (resume == true) {
+        final application = draft!.application!;
+        application.product ??= product;
+
+        if (!mounted) return;
+
+        Navigator.pushNamed(
+          context,
+          DepositStep3Screen.routeName,
+          arguments: application,
+        );
+        return;
+      }
+    }
+
+    if (!mounted) return;
+
+    Navigator.pushNamed(
+      context,
+      DepositStep1Screen.routeName,
+      arguments: DepositStep1Args(
+        dpstId: widget.dpstId,
+        product: product,
+      ),
+    );
+  }
+
 }
 
 // --------------------------------------------------------------

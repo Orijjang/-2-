@@ -1,11 +1,23 @@
 import 'dart:convert';
+import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:test_main/screens/deposit/list.dart';
 import 'package:test_main/screens/main/search.dart';
+import 'package:test_main/voice/controller/voice_session_controller.dart';
+import 'package:test_main/voice/overlay/voice_overlay_manager.dart';
+import 'package:test_main/voice/scope/voice_session_scope.dart';
+import '../../services/api_service.dart';
+import '../../voice/service/voice_stt_service.dart';
+import '../../voice/service/voice_tts_service.dart';
+import '../../voice/ui/voice_assistant_overlay.dart';
+import '../../voice/ui/voice_nav_command.dart';
+import '../../voice/ui/voice_ui_state.dart';
+import '../../voice/ui/voice_waveform.dart';
 import '../app_colors.dart';
 import '../../main.dart';
+import '../deposit/view.dart';
 import '../mypage/transaction_history.dart';
 import '../ai/camera_exchange_screen.dart';
 import '../ai/voice_assistant_screen.dart';
@@ -46,12 +58,43 @@ class RateDTO {
 }
 
 Future<List<RateDTO>> fetchLatestRates() async {
-  final response = await http.get(
-    Uri.parse('http://34.64.124.33:8080/backend/api/exchange/rates'),
+  // 기본 헤더만 사용
+  final headers = {
+    "Content-Type": "application/json",
+  };
+
+  final baseUrl =
+  Uri.parse(
+      '${ApiService.currentUrl}/exchange'
   );
 
-  final List list = jsonDecode(response.body);
-  return list.map((e) => RateDTO.fromJson(e)).toList();
+  final url = Uri.parse('$baseUrl/rates');
+
+  print("📌 headers = $headers");
+  print("📌 rates url = $url");
+
+  final req = http.Request('GET', url)
+    ..headers.addAll(headers)
+    ..followRedirects = false; // ✅ 리다이렉트 추적 끔
+
+  final streamed = await http.Client().send(req);
+  final res = await http.Response.fromStream(streamed);
+
+  print("📌 status = ${res.statusCode}");
+  print("📌 location = ${res.headers['location']}"); // ✅ 302면 여기 찍힘
+  print("📌 body = ${res.body}");
+
+  if (res.statusCode != 200) {
+    throw Exception("환율 조회 실패: ${res.statusCode} ${res.body}");
+  }
+
+  // 빈 리스트가 올 경우를 대비해 타입 체크를 강화
+  final decoded = jsonDecode(utf8.decode(res.bodyBytes));
+  if (decoded is List) {
+    return decoded.map((e) => RateDTO.fromJson(e)).toList();
+  } else {
+    return [];
+  }
 }
 
 
@@ -64,6 +107,35 @@ class BankHomePage extends StatefulWidget {
 
 class _BankHomePageState extends State<BankHomePage> {
   // int _currentIndex = 0;
+  late VoiceSessionController _voiceController;
+  bool _listenerAttached = false;
+  
+  @override
+  void initState() {
+    super.initState();
+  
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    _voiceController = VoiceSessionScope.of(context);
+
+  }
+
+
+  void _openVoiceOverlay() {
+    _voiceController.attachOverlay(); // 최초 1회만 START
+
+    VoiceOverlayManager.show(
+      context,
+      _voiceController,
+    );
+  }
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -255,7 +327,16 @@ class _BankHomePageState extends State<BankHomePage> {
                 crossAxisCount: 4,
                 childAspectRatio: 0.9,
                 children: [
-                  _QuickMenu("환전", "images/flobankicon1.png"),
+                  _QuickMenu("환전", "images/flobankicon1.png",
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const ExchangeRateScreen(),
+                        ),
+                      );
+                    },
+                  ),
                   _QuickMenu(
                     "환율",
                     "images/flobankicon2.png",
@@ -332,7 +413,7 @@ class _BankHomePageState extends State<BankHomePage> {
               const SizedBox(height: 8),
 
               /// ✅ AI & 외환 서비스 리스트
-              _ServiceList(services: buildAiAndFxServices(context)),
+              _ServiceList(services: buildAiAndFxServices(context, _openVoiceOverlay)),
             ],
           ),
         ),
@@ -763,7 +844,7 @@ class ServiceHighlight {
   final VoidCallback onTap;
 }
 
-List<ServiceHighlight> buildAiAndFxServices(BuildContext context) => [
+List<ServiceHighlight> buildAiAndFxServices(BuildContext context, VoidCallback onOpenVoice) => [
   ServiceHighlight(
     icon: Icons.photo_camera_front_outlined,
     title: 'AI 카메라 환율 변환',
@@ -781,14 +862,13 @@ List<ServiceHighlight> buildAiAndFxServices(BuildContext context) => [
     icon: 'images/flobankIcon5_음성비서.png',
     title: 'AI 음성비서',
     description: '시리처럼 말로 송금·조회·추천을 요청해보세요.',
-    onTap: () {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => const VoiceAssistantScreen(),
-        ),
-      );
+    onTap: () async {
+      final agreed = await _ensureVoiceTermsAgreed(context);
+      if (!agreed) return;
+
+      onOpenVoice();
     },
+
   ),
   const ServiceHighlight(
     icon: Icons.smart_toy_outlined,
@@ -850,3 +930,129 @@ Widget _QuickMenu(String title, dynamic iconOrImage, {VoidCallback? onTap}) {
     ),
   );
 }
+
+Future<bool> _ensureVoiceTermsAgreed(BuildContext context) async {
+  // TODO: 실제로는 SharedPreferences / SecureStorage
+  bool alreadyAgreed = false;
+
+  if (alreadyAgreed) return true;
+
+  final result = await showModalBottomSheet<bool>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (_) => const VoiceTermsSheet(),
+  );
+
+  return result == true;
+}
+
+
+
+
+
+class VoiceTermsSheet extends StatefulWidget {
+  const VoiceTermsSheet();
+
+  @override
+  State<VoiceTermsSheet> createState() => _VoiceTermsSheetState();
+}
+
+class _VoiceTermsSheetState extends State<VoiceTermsSheet> {
+  bool agreed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 드래그 핸들
+            Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.black26,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            const Text(
+              'AI 음성 가이드 이용 안내',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+
+            const Text(
+              '음성 명령 처리를 위해 마이크 접근 권한이 필요하며,\n'
+                  '음성 데이터는 서비스 제공 목적에만 사용됩니다.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.black54,
+                height: 1.4,
+              ),
+            ),
+
+
+            // 체크박스
+            GestureDetector(
+              onTap: () => setState(() => agreed = !agreed),
+              child: Row(
+                children: [
+                  Checkbox(
+                    value: agreed,
+                    onChanged: (v) => setState(() => agreed = v ?? false),
+                    activeColor: AppColors.mainPaleBlue,
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'AI 음성비서 이용에 동의합니다. (필수)',
+                      style: TextStyle(fontSize: 14),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
+            // 동의 버튼
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                onPressed: agreed
+                    ? () {
+                  // TODO: 동의 여부 저장
+                  Navigator.pop(context, true);
+                }
+                    : null,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3C4F76),
+                  disabledBackgroundColor: Colors.grey.shade300,
+                ),
+                child: const Text(
+                  '동의하고 시작하기',
+                  style: TextStyle(fontSize: 15, color: Colors.white),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+
